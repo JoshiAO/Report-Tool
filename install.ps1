@@ -9,8 +9,10 @@ if (!(Get-Command "git" -ErrorAction SilentlyContinue)) {
 $repoDir = Join-Path $PWD "Report-Tool"
 
 if (!(Test-Path $repoDir)) {
-    Write-Host "Please paste your GitHub Personal Access Token (the same one starting with ghp_) to clone the private repository:" -ForegroundColor Yellow
-    $token = Read-Host "Token"
+    if (!$token) {
+        Write-Host "Please paste your GitHub Personal Access Token (the same one starting with ghp_) to clone the private repository:" -ForegroundColor Yellow
+        $token = Read-Host "Token"
+    }
     
     Write-Host "Cloning repository..."
     git clone "https://${token}@github.com/JoshiAO/Report-Tool.git"
@@ -56,6 +58,6 @@ Write-Host "Building React app..."
 npm run build
 cd ..
 
-Write-Host "`nInstallation Complete!" -ForegroundColor Green
-Write-Host "Your tool is installed at: $repoDir" -ForegroundColor Cyan
-Write-Host "Run .\run_tool.ps1 inside that folder to start the tool." -ForegroundColor Cyan
+Write-Host "`nInstallation Complete! Launching Report Tool..." -ForegroundColor Green
+cd $repoDir
+.\run_tool.ps1
