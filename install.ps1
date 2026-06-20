@@ -21,6 +21,11 @@ if (!(Test-Path $repoDir)) {
         Write-Host "Failed to clone repository. Check your token." -ForegroundColor Red
         exit 1
     }
+} else {
+    Write-Host "Updating existing repository..."
+    cd $repoDir
+    git pull
+    cd ..
 }
 
 cd $repoDir
