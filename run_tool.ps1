@@ -23,8 +23,8 @@ if (-not (Get-Command "python" -ErrorAction SilentlyContinue)) {
 # Expand-Archive -Path "$env:TEMP\report-tool.zip" -DestinationPath "$env:USERPROFILE\Desktop" -Force
 # Move-Item "$env:USERPROFILE\Desktop\Report-Tool-main" $extractPath -Force
 
-# For this local generation, we just use the current path
-$extractPath = "C:\Users\User\Desktop\Mini Projects\Report-Tool"
+# For this local generation, we use the current script's path
+$extractPath = $PSScriptRoot
 Set-Location $extractPath
 
 # 3. Setup Python Virtual Environment
