@@ -301,6 +301,13 @@ export default function App() {
                   <button className="btn btn-secondary btn-icon" onClick={() => openBrowser('Select New Customer File', 'reference_path_new_customer')}><FileSpreadsheet size={18}/></button>
                 </div>
               </div>
+              <div className="form-group">
+                <label>Wrong C.I. Monitoring Reference</label>
+                <div className="input-container">
+                  <input type="text" value={settings.reference_path_wrong_ci || ''} onChange={(e) => setSettings({...settings, reference_path_wrong_ci: e.target.value})} />
+                  <button className="btn btn-secondary btn-icon" onClick={() => openBrowser('Select Wrong C.I. File', 'reference_path_wrong_ci')}><FileSpreadsheet size={18}/></button>
+                </div>
+              </div>
             </div>
           </div>
 

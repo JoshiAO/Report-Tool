@@ -83,7 +83,7 @@ class LegacyETL:
         
 
         #Reading MONTHLY WRONG C.I. MONITORING
-        ci_import_path = os.path.join(ci_path, "MONTHLY WRONG C.I. MONITORING.xlsx")
+        ci_import_path = self.settings.reference_path_wrong_ci
         await self.send_progress(f"Reading Wrong C.I. Monitoring data from {ci_import_path}...")
         
         ci_df = pd.read_excel(ci_import_path, skiprows=4)

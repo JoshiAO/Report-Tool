@@ -12,6 +12,7 @@ class AppSettings(BaseModel):
     reference_path_cdam: str = ""
     reference_path_gt_channel: str = ""
     reference_path_new_customer: str = ""
+    reference_path_wrong_ci: str = ""
     default_import_folder: str = ""
     default_export_folder: str = ""
     export_prefix: str = "KENEA"
