@@ -199,12 +199,15 @@ export default function App() {
            <h2 style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem'}}>
              <Settings size={24}/> Activation Required
            </h2>
-           <p style={{color: 'var(--text-muted)'}}>Please enter your EIKO activation code to unlock this software.</p>
+           <p style={{color: 'var(--text-muted)'}}>Please enter your activation code to unlock this software.</p>
            <input type="text" value={activationInput} onChange={e => setActivationInput(e.target.value)} style={{width: '100%', padding: '0.75rem', marginBottom: '1rem', marginTop: '1rem'}} placeholder="Enter code here..."/>
            {activationError && <p style={{color: '#f43f5e', marginBottom: '1rem'}}>{activationError}</p>}
            <button className="btn btn-success" onClick={handleActivate} disabled={activating} style={{width: '100%', padding: '0.75rem'}}>
              {activating ? 'Verifying with Server...' : 'Activate Software'}
            </button>
+           <p style={{color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1.5rem'}}>
+             Need an activation code? <a href="https://eikofisherman.web.app/contact" target="_blank" rel="noopener noreferrer" style={{color: 'var(--brand-primary)', textDecoration: 'none'}}>Contact</a> the developer.
+           </p>
         </div>
       </div>
     );
