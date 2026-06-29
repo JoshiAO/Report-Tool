@@ -17,7 +17,7 @@
 
 An enterprise-grade, fully local **React + FastAPI** desktop application engineered to ingest, transform, and export massive Excel datasets automatically.
 
-This platform was built to solve a critical business problem: the painful, error-prone manual manipulation of Excel data. By centralizing the Extract, Transform, Load (ETL) process locally, this tool securely generates `Net Invoiced`, `Sales Orders`, and `CML` reports instantly.
+**Report Tool** is a custom desktop application I independently engineered to solve manual reporting bottlenecks in my role as an RDSI. Built with React and FastAPI, this tool was designed exclusively to ingest, transform, and automate URC Regional Distributors (DMS) data. By replacing hours of manual Excel manipulation with a fast, zero-trust automated pipeline, this project showcases my ability to identify business inefficiencies and build scalable, real-world software solutions to solve them.
 
 [**Connect on LinkedIn**](https://www.linkedin.com/in/joshua-ocampo-b67210384) | [**View My Portfolio**](https://eikofisherman.web.app/)
 
