@@ -205,9 +205,11 @@ export default function App() {
            <button className="btn btn-success" onClick={handleActivate} disabled={activating} style={{width: '100%', padding: '0.75rem'}}>
              {activating ? 'Verifying with Server...' : 'Activate Software'}
            </button>
-           <p style={{color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1.5rem'}}>
-             Need an activation code? <a href="https://eikofisherman.web.app/contact" target="_blank" rel="noopener noreferrer" style={{color: 'var(--brand-primary)', textDecoration: 'none'}}>Contact</a> the developer.
-           </p>
+           <a href="https://eikofisherman.web.app/contact" target="_blank" rel="noopener noreferrer" style={{color: 'var(--text-muted)', textDecoration: 'none'}}>
+             <p style={{fontSize: '0.85rem', marginTop: '1.5rem', cursor: 'pointer'}} onMouseOver={(e) => e.currentTarget.style.color = 'var(--brand-primary)'} onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
+               Need an activation code? Contact the developer.
+             </p>
+           </a>
         </div>
       </div>
     );
