@@ -248,9 +248,9 @@ if os.path.exists(frontend_path):
 
 def open_browser():
     time.sleep(1.5)
-    webbrowser.open("http://localhost:8000")
+    webbrowser.open("http://localhost:8392")
 
 if __name__ == "__main__":
     threading.Thread(target=open_browser, daemon=True).start()
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8392)
