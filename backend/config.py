@@ -1,5 +1,9 @@
 import json
 import os
+import subprocess
+import base64
+import hashlib
+from cryptography.fernet import Fernet
 from pydantic import BaseModel
 from typing import Optional
 
@@ -24,21 +28,51 @@ class AppSettings(BaseModel):
     app_theme: str = "slate"
     terminal_theme: str = "matrix"
     terminal_custom_bg: str = "#000000"
+    terminal_custom_bg: str = "#000000"
     terminal_custom_text: str = "#ffffff"
+    activation_code: str = ""
+
+def get_machine_id():
+    try:
+        if os.name == 'nt':
+            output = subprocess.check_output('wmic csproduct get uuid', shell=True).decode().split('\n')[1].strip()
+            return output if output else "default_machine_id"
+        else:
+            return "default_machine_id"
+    except Exception:
+        return "default_machine_id"
+
+def get_cipher():
+    machine_id = get_machine_id()
+    key = hashlib.sha256(machine_id.encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(key))
 
 def load_settings() -> AppSettings:
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r") as f:
                 data = json.load(f)
+                if data.get("activation_code"):
+                    try:
+                        cipher = get_cipher()
+                        data["activation_code"] = cipher.decrypt(data["activation_code"].encode()).decode()
+                    except Exception:
+                        data["activation_code"] = ""
                 return AppSettings(**data)
         except Exception as e:
             print(f"Error loading settings: {e}")
     return AppSettings()
 
 def save_settings(settings: AppSettings):
+    data = settings.model_dump()
+    if data.get("activation_code"):
+        try:
+            cipher = get_cipher()
+            data["activation_code"] = cipher.encrypt(data["activation_code"].encode()).decode()
+        except Exception:
+            pass
     with open(SETTINGS_FILE, "w") as f:
-        json.write(settings.model_dump_json(), f)
+        json.dump(data, f, indent=4)
 
 def update_settings(new_settings: dict) -> AppSettings:
     settings = load_settings()

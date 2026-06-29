@@ -7,7 +7,7 @@ from datetime import datetime
 import asyncio
 
 class LegacyETL:
-    def __init__(self, settings, report_date, dummy_code, import_files, export_path, ci_path, send_progress, handle_missing_categories):
+    def __init__(self, settings, report_date, dummy_code, import_files, export_path, ci_path, send_progress, handle_missing_categories, net_inv_mapping=None):
         self.settings = settings
         self.report_date = report_date
         self.dummy_code = dummy_code
@@ -16,11 +16,15 @@ class LegacyETL:
         self.ci_path = ci_path
         self.send_progress = send_progress
         self.handle_missing_categories = handle_missing_categories
+        self.net_inv_mapping = net_inv_mapping
 
     async def execute(self):
         report_date = self.report_date
         dummy_code = self.dummy_code
         export_path = self.export_path
+        if not os.path.exists(export_path):
+            os.makedirs(export_path, exist_ok=True)
+            
         import_path = os.path.dirname(self.import_files['invoice'])
         ci_path = self.ci_path
         
@@ -679,31 +683,10 @@ class LegacyETL:
         
         export_net_inv = export_net_inv.sort_values(by=['DATE', 'ACCOUNT CODE'])
         
-        export_net_inv.rename(columns={
-            'RD NAME': 'RD Name',
-            'DATE': 'Date',
-            'WEEK': 'Week',
-            'BRANCH_NAME': 'Branch Name',
-            'SALES_REP_ID': 'Employee Code',
-            'SALES_REP_NAME': 'Employee Name',
-            'KEY_ACCOUNT': 'Channel',
-            'ACCOUNT CODE': 'Sold To Customer number',
-            'CUSTOMER_NAME': 'Sold To Customer Name',
-            'CATEGORY': 'Category',
-            'SKU CODE': 'Product Code',
-            'SKU NAME': 'Product Description',
-            'VOLUME': 'Volume',
-            'VALUE': 'Net Value',
-            'GOOD RETURNS': 'Good Stock Returns',
-            'BAD RETURNS': 'Bad Stock Returns',
-            'PARTY_CLASSIFICATION_DESCRIPTION': 'Channel_Classification',
-            'GEO_LOCATION_HIERARCHYDESCRIPTION': 'Brgy',
-            'CITY': 'Town',
-            'STATE_PROVINCE': 'Province',
-            'FS': 'FS',
-            'CHANNEL': 'RTM Model',
-            'GT_Channel': 'GT Channel'
-        }, inplace=True)
+        if not self.net_inv_mapping:
+            raise Exception("Activation mapping missing! Unauthorized access.")
+            
+        export_net_inv.rename(columns=self.net_inv_mapping, inplace=True)
         
         export_net_inv_final = export_net_inv[[
             'RD Name',

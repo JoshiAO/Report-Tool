@@ -16,7 +16,11 @@ backend/venv/
 !package.json
 !package-lock.json
 !frontend/package.json
-!frontend/package-lock.json
+!firebase.json
+functions/node_modules/
+build/
+dist/
+ReportTool.spec
 
 # OS files
 .DS_Store

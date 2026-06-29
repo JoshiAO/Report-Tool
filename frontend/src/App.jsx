@@ -11,6 +11,11 @@ export default function App() {
   const [processing, setProcessing] = useState(false);
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
   
+  // Activation State
+  const [activationInput, setActivationInput] = useState('');
+  const [activationError, setActivationError] = useState('');
+  const [activating, setActivating] = useState(false);
+  
   // Modals
   const [browseModal, setBrowseModal] = useState(null); // { title, currentPath, onSelect }
   const [categoryModal, setCategoryModal] = useState(null); // { jobId, missing, existing }
@@ -153,12 +158,57 @@ export default function App() {
         const errorMsg = typeof error.detail === 'object' ? JSON.stringify(error.detail) : error.detail;
         setLogs(l => [...l, `[Error] ${errorMsg}`]);
         setProcessing(false);
+      } else {
+        const result = await res.json();
+        if (result.status === "error") {
+            setLogs(l => [...l, `[Error] ${result.message}`]);
+            setProcessing(false);
+        }
       }
     } catch(e) {
       setLogs(l => [...l, `[Error] Failed to connect to server.`]);
       setProcessing(false);
     }
   };
+
+  const handleActivate = async () => {
+    setActivating(true);
+    setActivationError('');
+    try {
+      const res = await fetch(`${API_BASE}/activate`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ activation_code: activationInput })
+      });
+      const data = await res.json();
+      if(res.ok) {
+        setSettings({...settings, activation_code: activationInput});
+      } else {
+        setActivationError(data.detail || 'Activation failed');
+      }
+    } catch(e) {
+      setActivationError('Server error');
+    }
+    setActivating(false);
+  };
+
+  if (settings && !settings.activation_code) {
+    return (
+      <div className="app-container" style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+        <div className="glass-panel" style={{maxWidth: '400px', width: '100%', textAlign: 'center'}}>
+           <h2 style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem'}}>
+             <Settings size={24}/> Activation Required
+           </h2>
+           <p style={{color: 'var(--text-muted)'}}>Please enter your EIKO activation code to unlock this software.</p>
+           <input type="text" value={activationInput} onChange={e => setActivationInput(e.target.value)} style={{width: '100%', padding: '0.75rem', marginBottom: '1rem', marginTop: '1rem'}} placeholder="Enter code here..."/>
+           {activationError && <p style={{color: '#f43f5e', marginBottom: '1rem'}}>{activationError}</p>}
+           <button className="btn btn-success" onClick={handleActivate} disabled={activating} style={{width: '100%', padding: '0.75rem'}}>
+             {activating ? 'Verifying with Server...' : 'Activate Software'}
+           </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">

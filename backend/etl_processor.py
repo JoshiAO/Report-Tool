@@ -7,7 +7,7 @@ from etl_core import LegacyETL
 
 class ETLJob:
     def __init__(self, report_date: datetime, settings, base_import_dir: str, base_export_dir: str, dummy_code="Y", 
-                 send_progress=None, request_categories=None, request_missing_file=None):
+                 send_progress=None, request_categories=None, request_missing_file=None, net_inv_mapping=None):
         self.report_date = report_date
         self.settings = settings
         self.base_import_dir = base_import_dir
@@ -17,6 +17,7 @@ class ETLJob:
         self.send_progress = send_progress or dummy_progress
         self.request_categories = request_categories
         self.request_missing_file = request_missing_file
+        self.net_inv_mapping = net_inv_mapping
 
     async def run(self):
         try:
@@ -126,7 +127,8 @@ class ETLJob:
                 export_path=self.export_path,
                 ci_path=self.ci_path,
                 send_progress=self.send_progress,
-                handle_missing_categories=handle_missing_categories_wrapper
+                handle_missing_categories=handle_missing_categories_wrapper,
+                net_inv_mapping=self.net_inv_mapping
             )
             
             # The generated etl_core might have some missing imports since it runs globally
