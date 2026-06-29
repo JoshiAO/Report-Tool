@@ -229,6 +229,9 @@ async def browse_path(path: str = ""):
         raise HTTPException(status_code=400, detail=str(e))
 
 import sys
+import threading
+import webbrowser
+import time
 
 # Serve static files (React frontend)
 if hasattr(sys, '_MEIPASS'):
@@ -241,6 +244,11 @@ else:
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")
 
+def open_browser():
+    time.sleep(1.5)
+    webbrowser.open("http://localhost:8000")
+
 if __name__ == "__main__":
+    threading.Thread(target=open_browser, daemon=True).start()
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
