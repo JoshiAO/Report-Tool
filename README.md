@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <img src="./frontend/public/attachment.png" alt="Report Tool" width="120">
+  <img src="./frontend/public/JoshiAO.jpg" alt="Report Tool" width="120">
   <br>
   Interactive Report Tool Platform
   <br>
