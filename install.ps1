@@ -1,4 +1,4 @@
-﻿Write-Host "Installing Report Tool..." -ForegroundColor Cyan
+Write-Host "Installing Report Tool..." -ForegroundColor Cyan
 
 # Ensure git is available
 if (!(Get-Command "git" -ErrorAction SilentlyContinue)) {

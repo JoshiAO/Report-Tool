@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Installs and runs the Report Tool application.
 #>
