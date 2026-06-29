@@ -94,7 +94,7 @@ class LegacyETL:
         
         ci_row_count = ci_df.count()
         
-        print(f"Numbers of Recorded Wrong C.I.: {ci_row_count.iloc[0]}")
+        await self.send_progress(f"Found {ci_row_count.iloc[0]} Recorded Wrong C.I. Deductions.")
         
         ci_checker_inv = ci_df.copy()
         ci_checker_inv = ci_checker_inv[['Invoice Filter']]
@@ -107,6 +107,7 @@ class LegacyETL:
         await self.send_progress(f"Extracting Invoice Data from {full_im_path_inv}...")
         
         df1 = pd.read_excel(full_im_path_inv)
+        await self.send_progress(f"Invoice Data loaded successfully ({len(df1)} rows). Cleaning structures...")
         
         await self.send_progress("Filtering out Sales Tax items and applying C.I. deductions...")
         dfc1 = df1[['Invoice Date', 'Sold To Customer Number',
@@ -132,6 +133,7 @@ class LegacyETL:
         await self.send_progress(f"Extracting Customer Returns Data from {full_im_path_ret}...")
         
         df2 = pd.read_excel(full_im_path_ret)
+        await self.send_progress(f"Customer Returns Data loaded successfully ({len(df2)} rows). Processing deductions...")
         
         await self.send_progress("Pivoting Customer Returns by Facility Name (BO/FG)...")
         dfc2 = df2[['Customer Return Date', 'Sold To Customer Number', 'Product Code',
@@ -178,6 +180,7 @@ class LegacyETL:
         await self.send_progress(f"Extracting Sales Orders Data from {full_im_path_so}...")
         
         df3 = pd.read_excel(full_im_path_so)
+        await self.send_progress(f"Sales Orders Data loaded successfully ({len(df3)} rows). Finding invoiced sales...")
         
         await self.send_progress("Filtering Invoiced Sales Orders and calculating VAT...")
         dfc3 = df3[['Last Modified Date', 'Sold To Customer number',
@@ -217,6 +220,7 @@ class LegacyETL:
         await self.send_progress(f"Reading Customer Master List from {full_im_path_cust}...")
         
         dms_cust_df = pd.read_excel(full_im_path_cust)
+        await self.send_progress(f"Customer Master List loaded successfully ({len(dms_cust_df)} customers). Organizing CML data structures...")
         
         await self.send_progress("Organizing Customer and CML Data structures...")
         cust_df = dms_cust_df.copy()
@@ -264,6 +268,7 @@ class LegacyETL:
         await self.send_progress(f"Extracting Route Data from {full_im_path_route}...")
         
         dms_route_df = pd.read_excel(full_im_path_route)
+        await self.send_progress(f"Route Data loaded successfully ({len(dms_route_df)} routes). Mapping coverage to CML...")
         
         await self.send_progress("Merging Route Data with CML...")
         dms_route = dms_route_df.copy()[[
@@ -273,6 +278,7 @@ class LegacyETL:
         
         # Clean up CDAM DF
         # Set proper column names from row 1 and skip the first 2 rows
+        await self.send_progress("Cleaning up CDAM structure...")
         cdam_df_clean = cdam_df.iloc[2:].copy()
         cdam_df_clean.columns = ['PARTY_CLASSIFICATION_DESCRIPTION', 'CDAM']
         cdam_df_clean = cdam_df_clean.reset_index(drop=True)
@@ -280,6 +286,7 @@ class LegacyETL:
         
         # Clean up FS DF
         # Field supervisors already has correct column names from Excel; no need to skip rows
+        await self.send_progress("Applying Field Supervisor names and roles...")
         fs_df_clean = field_supervisors_df.copy()
         fs_df_clean = fs_df_clean.reset_index(drop=True)
         fs_df_clean = fs_df_clean.dropna()
@@ -384,6 +391,7 @@ class LegacyETL:
         ]].copy()
         
         # Remove duplicates based on NEXT_UP_NUMBER, keeping the most recent CREATED_DATE
+        await self.send_progress("Removing CML duplicates based on creation date...")
         cml_final_df = cml_final_df.sort_values('CREATED_DATE', ascending=True).drop_duplicates(subset='NEXT_UP_NUMBER', keep='first')
         
         # Convert CREATED_DATE to datetime for proper sorting, then sort by CREATED_DATE and NEXT_UP_NUMBER

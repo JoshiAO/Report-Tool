@@ -40,7 +40,6 @@ Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
 # 5. Start the server
 Write-Host "Starting the server at http://localhost:8000" -ForegroundColor Green
 Write-Host "Keep this window open while using the tool." -ForegroundColor Gray
-Start-Process "http://localhost:8000"
 
 # Run Uvicorn
 & "backend\venv\Scripts\python.exe" backend\main.py
