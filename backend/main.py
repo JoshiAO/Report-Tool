@@ -48,6 +48,8 @@ async def broadcast_progress(message: str):
             await connection.send_json({"type": "progress", "message": message})
         except:
             pass
+    # Force the event loop to flush the websocket buffer before returning to CPU-bound tasks
+    await asyncio.sleep(0.05)
 
 async def request_categories_from_ui(missing_list: List[dict], existing_categories: List[str]) -> List[dict]:
     # Send a request to the UI
