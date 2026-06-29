@@ -97,7 +97,7 @@ export default function App() {
       const data = JSON.parse(e.data);
       if (data.type === 'progress') {
         setLogs(l => [...l, `[${new Date().toLocaleTimeString()}] ${data.message}`]);
-        if (data.message.includes('successfully') || data.message.includes('Error:')) {
+        if (data.message.includes('ETL successfully processed!') || data.message.includes('Error:')) {
           setProcessing(false);
         }
       } else if (data.type === 'category_request') {
