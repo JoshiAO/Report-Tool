@@ -1,6 +1,5 @@
 <h1 align="center">
-  <br>
-  Interactive Report Tool Platform
+  Report Tool
   <br>
 </h1>
 
