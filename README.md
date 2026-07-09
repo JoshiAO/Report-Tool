@@ -1,6 +1,5 @@
 <h1 align="center">
   Report Tool
-  <br>
 </h1>
 
 <h4 align="center">Automating chaotic Excel ETL pipelines into a streamlined, high-performance local application.</h4>
