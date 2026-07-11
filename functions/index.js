@@ -43,6 +43,10 @@ app.use('/', async (req, res) => {
             return res.status(403).json({ error: "Activation code is disabled" });
         }
 
+        if (data.projectname !== "reportTool") {
+            return res.status(403).json({ error: "Activation code does not match this software project" });
+        }
+
         // Return the core mapping required for ETL to finish
         const mapping = {
             'RD NAME': 'RD Name',
