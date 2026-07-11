@@ -64,8 +64,14 @@ npm run build
 cd ..
 
 Write-Host "`nInstallation Complete! Launching Report Tool..." -ForegroundColor Green
-cd $repoDir
-.\run_tool.ps1
+if (Test-Path ".\run_tool.ps1") {
+    .\run_tool.ps1
+} elseif (Test-Path "$repoDir\run_tool.ps1") {
+    cd $repoDir
+    .\run_tool.ps1
+} else {
+    Write-Host "Could not find run_tool.ps1. Please launch it manually." -ForegroundColor Yellow
+}
 
 
 Read-Host 'Press Enter to exit...'
