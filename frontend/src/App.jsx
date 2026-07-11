@@ -358,14 +358,14 @@ export default function App() {
               </div>
               <div className="form-group">
                 <label>Wrong C.I. Reference (.xlsx)</label>
-                <div className="input-group">
+                <div className="input-container">
                   <input type="text" value={settings.reference_path_wrong_ci || ''} onChange={(e) => setSettings({...settings, reference_path_wrong_ci: e.target.value})} />
                   <button className="btn btn-secondary btn-icon" onClick={() => openBrowser('Select Wrong C.I. File', 'reference_path_wrong_ci')}><FileSpreadsheet size={18}/></button>
                 </div>
               </div>
               <div className="form-group">
                 <label>Freegoods Reference (.xlsx)</label>
-                <div className="input-group">
+                <div className="input-container">
                   <input type="text" value={settings.reference_path_freegoods || ''} onChange={(e) => setSettings({...settings, reference_path_freegoods: e.target.value})} />
                   <button className="btn btn-secondary btn-icon" onClick={() => openBrowser('Select Freegoods File', 'reference_path_freegoods')}><FileSpreadsheet size={18}/></button>
                 </div>
