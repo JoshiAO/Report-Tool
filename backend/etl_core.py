@@ -95,7 +95,10 @@ class LegacyETL:
                 freegoods_df = freegoods_df[['Product Code', 'Case']].rename(columns={'Product Code': 'SKU CODE', 'Case': 'FG_CASE_REF'})
                 freegoods_df['SKU CODE'] = freegoods_df['SKU CODE'].astype(str)
             except Exception as e:
-                await self.send_progress(f"Warning: Failed to load Freegoods reference: {e}")
+                import traceback
+                err_msg = traceback.format_exc()
+                await self.send_progress(f"Error: {err_msg}")
+                print(err_msg)
                 freegoods_df = pd.DataFrame(columns=['SKU CODE', 'FG_CASE_REF'])
         else:
             freegoods_df = pd.DataFrame(columns=['SKU CODE', 'FG_CASE_REF'])
@@ -704,12 +707,14 @@ class LegacyETL:
         # OVERRIDE VOLUME FOR FREEGOODS
         freegoods_mask = net_inv_f_l4['FG_CASE_REF'].notna()
         fg_case_mask = freegoods_mask & (net_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS']))
-        net_inv_f_l4.loc[fg_case_mask, 'VOLUME'] = net_inv_f_l4.loc[fg_case_mask, 'QTY']
+        if fg_case_mask.any():
+            net_inv_f_l4.loc[fg_case_mask, 'VOLUME'] = pd.to_numeric(net_inv_f_l4.loc[fg_case_mask, 'QTY'], errors='coerce')
         
         fg_other_mask = freegoods_mask & (~net_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS'])) & (net_inv_f_l4['FG_CASE_REF'] > 0)
-        net_inv_f_l4.loc[fg_other_mask, 'VOLUME'] = (
-            net_inv_f_l4.loc[fg_other_mask, 'QTY'] / net_inv_f_l4.loc[fg_other_mask, 'FG_CASE_REF']
-        )
+        if fg_other_mask.any():
+            net_inv_f_l4.loc[fg_other_mask, 'VOLUME'] = (
+                pd.to_numeric(net_inv_f_l4.loc[fg_other_mask, 'QTY'], errors='coerce') / net_inv_f_l4.loc[fg_other_mask, 'FG_CASE_REF']
+            )
         
         # Merge GT Channel based on PARTY_CLASSIFICATION_DESCRIPTION
         gt_channel = gt_channel_df.copy()
@@ -873,12 +878,14 @@ class LegacyETL:
         # OVERRIDE VOLUME FOR FREEGOODS
         freegoods_mask_so = sales_orders_df5['FG_CASE_REF'].notna()
         fg_case_mask_so = freegoods_mask_so & (sales_orders_df5['UOM'].isin(['Case', 'INF_PROD_CAS']))
-        sales_orders_df5.loc[fg_case_mask_so, 'VOLUME'] = sales_orders_df5.loc[fg_case_mask_so, 'Quantity']
+        if fg_case_mask_so.any():
+            sales_orders_df5.loc[fg_case_mask_so, 'VOLUME'] = pd.to_numeric(sales_orders_df5.loc[fg_case_mask_so, 'Quantity'], errors='coerce')
 
         fg_other_mask_so = freegoods_mask_so & (~sales_orders_df5['UOM'].isin(['Case', 'INF_PROD_CAS'])) & (sales_orders_df5['FG_CASE_REF'] > 0)
-        sales_orders_df5.loc[fg_other_mask_so, 'VOLUME'] = (
-            sales_orders_df5.loc[fg_other_mask_so, 'Quantity'] / sales_orders_df5.loc[fg_other_mask_so, 'FG_CASE_REF']
-        )
+        if fg_other_mask_so.any():
+            sales_orders_df5.loc[fg_other_mask_so, 'VOLUME'] = (
+                pd.to_numeric(sales_orders_df5.loc[fg_other_mask_so, 'Quantity'], errors='coerce') / sales_orders_df5.loc[fg_other_mask_so, 'FG_CASE_REF']
+            )
         
         sales_orders_df5['RD NAME'] = 'Kimberlin'
         
@@ -1032,12 +1039,14 @@ class LegacyETL:
         # OVERRIDE VOLUME FOR FREEGOODS
         freegoods_mask_si = ser_inv_f_l4['FG_CASE_REF'].notna()
         fg_case_mask_si = freegoods_mask_si & (ser_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS']))
-        ser_inv_f_l4.loc[fg_case_mask_si, 'VOLUME'] = ser_inv_f_l4.loc[fg_case_mask_si, 'QTY']
+        if fg_case_mask_si.any():
+            ser_inv_f_l4.loc[fg_case_mask_si, 'VOLUME'] = pd.to_numeric(ser_inv_f_l4.loc[fg_case_mask_si, 'QTY'], errors='coerce')
 
         fg_other_mask_si = freegoods_mask_si & (~ser_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS'])) & (ser_inv_f_l4['FG_CASE_REF'] > 0)
-        ser_inv_f_l4.loc[fg_other_mask_si, 'VOLUME'] = (
-            ser_inv_f_l4.loc[fg_other_mask_si, 'QTY'] / ser_inv_f_l4.loc[fg_other_mask_si, 'FG_CASE_REF']
-        )
+        if fg_other_mask_si.any():
+            ser_inv_f_l4.loc[fg_other_mask_si, 'VOLUME'] = (
+                pd.to_numeric(ser_inv_f_l4.loc[fg_other_mask_si, 'QTY'], errors='coerce') / ser_inv_f_l4.loc[fg_other_mask_si, 'FG_CASE_REF']
+            )
         
         ser_inv_f_l4['RD NAME'] = 'Kimberlin'
         
