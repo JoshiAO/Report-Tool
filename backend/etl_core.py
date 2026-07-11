@@ -86,6 +86,20 @@ class LegacyETL:
         CML_path = os.path.join(export_path, ex_filename_cml)
         
 
+        # Load Freegoods Reference
+        freegoods_ref_path = self.settings.reference_path_freegoods
+        if freegoods_ref_path:
+            await self.send_progress(f"Reading Freegoods reference data from {freegoods_ref_path}...")
+            try:
+                freegoods_df = pd.read_excel(freegoods_ref_path)
+                freegoods_df = freegoods_df[['Product Code', 'Case']].rename(columns={'Product Code': 'SKU CODE', 'Case': 'FG_CASE_REF'})
+                freegoods_df['SKU CODE'] = freegoods_df['SKU CODE'].astype(str)
+            except Exception as e:
+                await self.send_progress(f"Warning: Failed to load Freegoods reference: {e}")
+                freegoods_df = pd.DataFrame(columns=['SKU CODE', 'FG_CASE_REF'])
+        else:
+            freegoods_df = pd.DataFrame(columns=['SKU CODE', 'FG_CASE_REF'])
+
         #Reading MONTHLY WRONG C.I. MONITORING
         ci_import_path = self.settings.reference_path_wrong_ci
         await self.send_progress(f"Reading Wrong C.I. Monitoring data from {ci_import_path}...")
@@ -111,7 +125,7 @@ class LegacyETL:
         
         await self.send_progress("Filtering out Sales Tax items and applying C.I. deductions...")
         dfc1 = df1[['Invoice Date', 'Sold To Customer Number',
-        'Product Code', 'Product/Item Description',
+        'Product Code', 'Product/Item Description', 'Product UOM', 'Quantity',
         'Total Item amount with Tax and Discount', 'Invoice Item Type','Invoice number']]
         inv = dfc1[dfc1['Invoice Item Type'] != 'ITM_SALES_TAX']
         
@@ -137,7 +151,7 @@ class LegacyETL:
         
         await self.send_progress("Pivoting Customer Returns by Facility Name (BO/FG)...")
         dfc2 = df2[['Customer Return Date', 'Sold To Customer Number', 'Product Code',
-                    'Product Description', 'Facility Name', 'Estimated Product Return Amount','Customer Return Number']].copy()
+                    'Product Description', 'Facility Name', 'Estimated Product Return Amount','Customer Return Number', 'UOM', 'Return/ QC Quantity']].copy()
         dfc2['Estimated Product Return Amount'] = dfc2['Estimated Product Return Amount'].fillna(0)
         ret_init = dfc2
         
@@ -162,7 +176,7 @@ class LegacyETL:
         dfc3['Facility Name'] = dfc3['Facility Name'].str.extract(r'\b(FG|BO)\b')
         
         cust_ret = dfc3.pivot_table(index=['Customer Return Date', 'Sold To Customer Number', 
-        'Product Code', 'Product Description', 'Total Item amount with Tax and Discount'], columns='Facility Name', values='with vat', aggfunc=sum)
+        'Product Code', 'Product Description', 'UOM', 'Return/ QC Quantity', 'Total Item amount with Tax and Discount'], columns='Facility Name', values='with vat', aggfunc=sum)
         
         ret_f = cust_ret.reset_index()
         
@@ -184,7 +198,7 @@ class LegacyETL:
         
         await self.send_progress("Filtering Invoiced Sales Orders and calculating VAT...")
         dfc3 = df3[['Last Modified Date', 'Sold To Customer number',
-         'Product Code', 'Product Description', 'Total Product Amount', 'SO status', 'SO Number']]
+         'Product Code', 'Product Description', 'UOM', 'Quantity', 'Total Product Amount', 'SO status', 'SO Number']]
         so_par = dfc3[dfc3['SO status'] == 'Invoiced']
         
         #Get Original Invoice
@@ -602,6 +616,8 @@ class LegacyETL:
         # 'Sold To Customer Name': 'ACCOUNT NAME',
         'Product Code': 'SKU CODE',
         'Product/Item Description': 'SKU NAME',
+        'Product UOM': 'UOM',
+        'Quantity': 'QTY',
         'Total Item amount with Tax and Discount': 'SERVED INVOICE',
         'BO': 'BAD RETURNS',
         'FG': 'GOOD RETURNS'
@@ -613,6 +629,8 @@ class LegacyETL:
         'Sold To Customer Number': 'ACCOUNT CODE',
         'Product Code': 'SKU CODE', 
         'Product Description': 'SKU NAME',
+        'UOM': 'UOM',
+        'Return/ QC Quantity': 'QTY',
         'Total Item amount with Tax and Discount': 'SERVED INVOICE',
         'BO': 'BAD RETURNS',
         'FG': 'GOOD RETURNS'
@@ -667,6 +685,9 @@ class LegacyETL:
         van_mask = net_inv_f_l4['CHANNEL'] == 'VAN(EXTRUCK)'
         book_mask = net_inv_f_l4['CHANNEL'] == 'BOOK(Booking)'
         
+        # Merge Freegoods reference
+        net_inv_f_l4 = net_inv_f_l4.merge(freegoods_df, on='SKU CODE', how='left')
+        
         # Use the proper price reference for each channel
         van_price_mask = van_mask & (net_inv_f_l4['SKU PRICE REFERENCE_M2'] != 0)
         net_inv_f_l4.loc[van_price_mask, 'VOLUME'] = (
@@ -678,6 +699,16 @@ class LegacyETL:
         net_inv_f_l4.loc[book_price_mask, 'VOLUME'] = (
             net_inv_f_l4.loc[book_price_mask, 'VALUE'] /
             net_inv_f_l4.loc[book_price_mask, 'SKU PRICE REFERENCE_M0']
+        )
+        
+        # OVERRIDE VOLUME FOR FREEGOODS
+        freegoods_mask = net_inv_f_l4['FG_CASE_REF'].notna()
+        fg_case_mask = freegoods_mask & (net_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS']))
+        net_inv_f_l4.loc[fg_case_mask, 'VOLUME'] = net_inv_f_l4.loc[fg_case_mask, 'QTY']
+        
+        fg_other_mask = freegoods_mask & (~net_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS'])) & (net_inv_f_l4['FG_CASE_REF'] > 0)
+        net_inv_f_l4.loc[fg_other_mask, 'VOLUME'] = (
+            net_inv_f_l4.loc[fg_other_mask, 'QTY'] / net_inv_f_l4.loc[fg_other_mask, 'FG_CASE_REF']
         )
         
         # Merge GT Channel based on PARTY_CLASSIFICATION_DESCRIPTION
@@ -823,6 +854,10 @@ class LegacyETL:
         van_mask = sales_orders_df5['CHANNEL'] == 'VAN(EXTRUCK)'
         book_mask = sales_orders_df5['CHANNEL'] == 'BOOK(Booking)'
         
+        # Merge Freegoods reference
+        freegoods_df_so = freegoods_df.rename(columns={'SKU CODE': 'Product Code'})
+        sales_orders_df5 = sales_orders_df5.merge(freegoods_df_so, on='Product Code', how='left')
+
         van_price_mask = van_mask & (sales_orders_df5['SKU PRICE REFERENCE_M2'] != 0)
         sales_orders_df5.loc[van_price_mask, 'VOLUME'] = (
             sales_orders_df5.loc[van_price_mask, 'with vat'] /
@@ -833,6 +868,16 @@ class LegacyETL:
         sales_orders_df5.loc[book_price_mask, 'VOLUME'] = (
             sales_orders_df5.loc[book_price_mask, 'with vat'] /
             sales_orders_df5.loc[book_price_mask, 'SKU PRICE REFERENCE_M0']
+        )
+        
+        # OVERRIDE VOLUME FOR FREEGOODS
+        freegoods_mask_so = sales_orders_df5['FG_CASE_REF'].notna()
+        fg_case_mask_so = freegoods_mask_so & (sales_orders_df5['UOM'].isin(['Case', 'INF_PROD_CAS']))
+        sales_orders_df5.loc[fg_case_mask_so, 'VOLUME'] = sales_orders_df5.loc[fg_case_mask_so, 'Quantity']
+
+        fg_other_mask_so = freegoods_mask_so & (~sales_orders_df5['UOM'].isin(['Case', 'INF_PROD_CAS'])) & (sales_orders_df5['FG_CASE_REF'] > 0)
+        sales_orders_df5.loc[fg_other_mask_so, 'VOLUME'] = (
+            sales_orders_df5.loc[fg_other_mask_so, 'Quantity'] / sales_orders_df5.loc[fg_other_mask_so, 'FG_CASE_REF']
         )
         
         sales_orders_df5['RD NAME'] = 'Kimberlin'
@@ -969,6 +1014,9 @@ class LegacyETL:
         van_mask = ser_inv_f_l4['CHANNEL'] == 'VAN(EXTRUCK)'
         book_mask = ser_inv_f_l4['CHANNEL'] == 'BOOK(Booking)'
         
+        # Merge Freegoods reference
+        ser_inv_f_l4 = ser_inv_f_l4.merge(freegoods_df, on='SKU CODE', how='left')
+
         van_price_mask = van_mask & (ser_inv_f_l4['SKU PRICE REFERENCE_M2'] != 0)
         ser_inv_f_l4.loc[van_price_mask, 'VOLUME'] = (
             ser_inv_f_l4.loc[van_price_mask, 'SERVED INVOICE'] /
@@ -979,6 +1027,16 @@ class LegacyETL:
         ser_inv_f_l4.loc[book_price_mask, 'VOLUME'] = (
             ser_inv_f_l4.loc[book_price_mask, 'SERVED INVOICE'] /
             ser_inv_f_l4.loc[book_price_mask, 'SKU PRICE REFERENCE_M0']
+        )
+        
+        # OVERRIDE VOLUME FOR FREEGOODS
+        freegoods_mask_si = ser_inv_f_l4['FG_CASE_REF'].notna()
+        fg_case_mask_si = freegoods_mask_si & (ser_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS']))
+        ser_inv_f_l4.loc[fg_case_mask_si, 'VOLUME'] = ser_inv_f_l4.loc[fg_case_mask_si, 'QTY']
+
+        fg_other_mask_si = freegoods_mask_si & (~ser_inv_f_l4['UOM'].isin(['Case', 'INF_PROD_CAS'])) & (ser_inv_f_l4['FG_CASE_REF'] > 0)
+        ser_inv_f_l4.loc[fg_other_mask_si, 'VOLUME'] = (
+            ser_inv_f_l4.loc[fg_other_mask_si, 'QTY'] / ser_inv_f_l4.loc[fg_other_mask_si, 'FG_CASE_REF']
         )
         
         ser_inv_f_l4['RD NAME'] = 'Kimberlin'
