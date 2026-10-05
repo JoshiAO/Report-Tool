@@ -23,12 +23,15 @@ if (!(Test-Path $repoDir)) {
     }
 } else {
     Write-Host "Updating existing repository..."
-    cd $repoDir
-    git pull
-    cd ..
+    Push-Location $repoDir
+    try {
+        git pull
+    } finally {
+        Pop-Location
+    }
 }
 
-cd $repoDir
+Push-Location $repoDir
 
 # Check Python
 if (!(Get-Command "python" -ErrorAction SilentlyContinue)) {
@@ -44,33 +47,43 @@ if (!(Get-Command "npm" -ErrorAction SilentlyContinue)) {
 
 # Backend Setup
 Write-Host "`nSetting up Python Backend..." -ForegroundColor Yellow
-cd backend
-if (!(Test-Path "venv")) {
-    Write-Host "Creating Virtual Environment..."
-    python -m venv venv
+Push-Location backend
+try {
+    if (!(Test-Path "venv")) {
+        Write-Host "Creating Virtual Environment..."
+        python -m venv venv
+    }
+    .\venv\Scripts\Activate.ps1
+    Write-Host "Installing Python requirements..."
+    pip install -r requirements.txt
+} finally {
+    Pop-Location
 }
-.\venv\Scripts\Activate.ps1
-Write-Host "Installing Python requirements..."
-pip install -r requirements.txt
-cd ..
 
 # Frontend Setup
 Write-Host "`nSetting up Node.js Frontend..." -ForegroundColor Yellow
-cd frontend
-Write-Host "Installing NPM packages..."
-npm install
-Write-Host "Building React app..."
-npm run build
-cd ..
+Push-Location frontend
+try {
+    Write-Host "Installing NPM packages..."
+    npm install
+    Write-Host "Building React app..."
+    npm run build
+} finally {
+    Pop-Location
+}
 
 Write-Host "`nInstallation Complete! Launching Report Tool..." -ForegroundColor Green
 if (Test-Path ".\run_tool.ps1") {
     $env:REPORT_TOOL_LOCAL_DEV = "1"
     .\run_tool.ps1
 } elseif (Test-Path "$repoDir\run_tool.ps1") {
-    cd $repoDir
-    $env:REPORT_TOOL_LOCAL_DEV = "1"
-    .\run_tool.ps1
+    Push-Location $repoDir
+    try {
+        $env:REPORT_TOOL_LOCAL_DEV = "1"
+        .\run_tool.ps1
+    } finally {
+        Pop-Location
+    }
 } else {
     Write-Host "Could not find run_tool.ps1. Please launch it manually." -ForegroundColor Yellow
 }
