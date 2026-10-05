@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FolderOpen, Settings, Play, Terminal, Database, Save, FileSpreadsheet, X, CheckCircle, Palette } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:8392/api';
-const WS_URL = 'ws://127.0.0.1:8392/ws';
+const APP_ORIGIN = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:${window.location.port}` : 'http://localhost:8392';
+const API_BASE = `${APP_ORIGIN}/api`;
+const WS_URL = `ws://${window.location.hostname}:${window.location.port}/ws`;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
