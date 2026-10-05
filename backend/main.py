@@ -11,13 +11,13 @@ import urllib.error
 from typing import Dict, List
 
 if __package__:
-    from .config import load_settings, save_settings, AppSettings, update_settings
+    from .config import load_settings, save_settings, AppSettings, update_settings, is_frozen_exe
     from .etl_processor import ETLJob
 else:
     backend_dir = os.path.dirname(os.path.abspath(__file__))
     if backend_dir not in sys.path:
         sys.path.insert(0, backend_dir)
-    from config import load_settings, save_settings, AppSettings, update_settings
+    from config import load_settings, save_settings, AppSettings, update_settings, is_frozen_exe
     from etl_processor import ETLJob
 
 from datetime import datetime
@@ -169,6 +169,13 @@ class ETLRequest(BaseModel):
 
 FIREBASE_FUNCTION_URL = "https://getcoremapping-pj6nqcygta-uc.a.run.app"
 
+def requires_activation() -> bool:
+    return is_frozen_exe()
+
+@app.get("/api/runtime_mode")
+async def runtime_mode():
+    return {"is_exe": is_frozen_exe(), "require_activation": requires_activation()}
+
 def verify_activation(activation_code: str):
     normalized_code = str(activation_code or '').strip()
     if not normalized_code:
@@ -233,11 +240,13 @@ async def run_etl(request: ETLRequest):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format, use YYYY-MM-DD")
         
-    # Verify activation before running ETL
-    try:
-        net_inv_mapping = verify_activation(settings.activation_code)
-    except HTTPException as e:
-        return {"status": "error", "message": f"Activation Error: {e.detail}"}
+    # Verify activation only for packaged client EXEs; local/dev runs skip this requirement.
+    net_inv_mapping = None
+    if requires_activation():
+        try:
+            net_inv_mapping = verify_activation(settings.activation_code)
+        except HTTPException as e:
+            return {"status": "error", "message": f"Activation Error: {e.detail}"}
 
     job = ETLJob(
         report_date=dt,

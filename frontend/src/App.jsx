@@ -8,6 +8,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [settings, setSettings] = useState(null);
   const [settingsError, setSettingsError] = useState('');
+  const [runtimeMode, setRuntimeMode] = useState({ is_exe: false, require_activation: false });
   const [logs, setLogs] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
@@ -28,13 +29,19 @@ export default function App() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
+        const modeRes = await fetch(`${API_BASE}/runtime_mode`);
+        const modeData = modeRes.ok ? await modeRes.json() : { is_exe: false, require_activation: false };
+        setRuntimeMode(modeData);
+
         const res = await fetch(`${API_BASE}/settings`);
         if (!res.ok) {
           throw new Error('Settings request failed');
         }
         const data = await res.json();
 
-        if (data?.activation_code) {
+        const requireActivation = Boolean(modeData?.require_activation);
+
+        if (requireActivation && data?.activation_code) {
           const verifyRes = await fetch(`${API_BASE}/verify_activation`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -70,7 +77,7 @@ export default function App() {
           terminal_custom_bg: '#000000',
           terminal_custom_text: '#ffffff'
         });
-        setSettingsError('Unable to reach backend yet. Activation is required.');
+        setSettingsError(runtimeMode.require_activation ? 'Unable to reach backend yet. Activation is required.' : '');
       }
     };
 
@@ -247,7 +254,8 @@ export default function App() {
     setActivating(false);
   };
 
-  const needsActivation = !settings || !settings.activation_code || String(settings.activation_code).trim() === '';
+  const requiresActivation = Boolean(runtimeMode?.require_activation);
+  const needsActivation = requiresActivation && (!settings || !settings.activation_code || String(settings.activation_code).trim() === '');
   const activationStatus = settingsError
     ? 'Needs activation'
     : settings?.activation_code
