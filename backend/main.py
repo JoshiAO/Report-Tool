@@ -4,15 +4,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import json
+import sys
 import asyncio
 import urllib.request
 import urllib.error
 from typing import Dict, List
-from config import load_settings, save_settings, AppSettings, update_settings
-from etl_processor import ETLJob
+
+if __package__:
+    from .config import load_settings, save_settings, AppSettings, update_settings
+    from .etl_processor import ETLJob
+else:
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+    from config import load_settings, save_settings, AppSettings, update_settings
+    from etl_processor import ETLJob
+
 from datetime import datetime
+import os
+import sys
+
+if __package__:
+    from .config import log_event
+else:
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+    from config import log_event
 
 app = FastAPI(title="Report Tool Backend")
+log_event("FastAPI backend module imported")
 
 app.add_middleware(
     CORSMiddleware,
@@ -130,10 +151,14 @@ async def resolve_file(resolution: FileResolution):
 
 @app.get("/api/settings", response_model=AppSettings)
 async def get_settings():
-    return load_settings()
+    log_event("GET /api/settings requested")
+    settings = load_settings()
+    log_event(f"GET /api/settings -> activation_code_present={bool(settings.activation_code)}")
+    return settings
 
 @app.post("/api/settings")
 async def set_settings(settings: dict):
+    log_event(f"POST /api/settings payload keys={list(settings.keys())}")
     return update_settings(settings)
 
 class ETLRequest(BaseModel):
@@ -145,39 +170,63 @@ class ETLRequest(BaseModel):
 FIREBASE_FUNCTION_URL = "https://getcoremapping-pj6nqcygta-uc.a.run.app"
 
 def verify_activation(activation_code: str):
-    if not activation_code:
+    normalized_code = str(activation_code or '').strip()
+    if not normalized_code:
         raise HTTPException(status_code=403, detail="Activation code is missing.")
-    
-    data = json.dumps({"activationCode": activation_code}).encode('utf-8')
+
+    data = json.dumps({"activationCode": normalized_code}).encode('utf-8')
     req = urllib.request.Request(FIREBASE_FUNCTION_URL, data=data, headers={'Content-Type': 'application/json'})
     try:
         with urllib.request.urlopen(req) as response:
             res_data = json.loads(response.read().decode('utf-8'))
             return res_data.get('mapping')
     except urllib.error.HTTPError as e:
+        try:
+            payload = json.loads(e.read().decode('utf-8'))
+            message = payload.get('error') or payload.get('message') or e.reason
+        except Exception:
+            message = e.reason
+
         if e.code == 403:
-            raise HTTPException(status_code=403, detail="Invalid or disabled activation code.")
-        raise HTTPException(status_code=500, detail=f"Activation server error: {e.reason}")
+            raise HTTPException(status_code=403, detail=message or "Invalid or disabled activation code.")
+        raise HTTPException(status_code=500, detail=f"Activation server error: {message}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to connect to activation server: {str(e)}")
 
 class ActivateRequest(BaseModel):
     activation_code: str
 
+@app.post("/api/verify_activation")
+async def verify_saved_activation(req: ActivateRequest):
+    normalized_code = str(req.activation_code or '').strip()
+    log_event(f"POST /api/verify_activation received code_present={bool(normalized_code)}")
+    try:
+        verify_activation(normalized_code)
+        return {"status": "valid", "valid": True}
+    except HTTPException as e:
+        log_event(f"Activation verification failed: {e.detail}")
+        return {"status": "invalid", "valid": False, "detail": e.detail}
+
+
 @app.post("/api/activate")
 async def activate_software(req: ActivateRequest):
+    normalized_code = str(req.activation_code or '').strip()
+    log_event(f"POST /api/activate received code_present={bool(normalized_code)}")
     # Verify it works
-    mapping = verify_activation(req.activation_code)
+    mapping = verify_activation(normalized_code)
     if mapping:
         # Save to settings
         settings = load_settings()
-        settings.activation_code = req.activation_code
+        settings.activation_code = normalized_code
         save_settings(settings)
+        log_event("Activation successful and settings saved")
         return {"status": "success", "message": "Software activated successfully!"}
+    log_event("Activation failed: mapping was empty")
     raise HTTPException(status_code=500, detail="Failed to retrieve mapping.")
 
 @app.post("/api/run_etl")
 async def run_etl(request: ETLRequest):
+    log_event(f"POST /api/run_etl date={request.report_date} import_dir={request.base_import_dir} export_dir={request.base_export_dir}")
     settings = load_settings()
     try:
         dt = datetime.strptime(request.report_date, "%Y-%m-%d")

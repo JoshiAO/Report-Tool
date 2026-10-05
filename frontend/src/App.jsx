@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FolderOpen, Settings, Play, Terminal, Database, Save, FileSpreadsheet, X, CheckCircle, Palette } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8392/api';
-const WS_URL = 'ws://localhost:8392/ws';
+const API_BASE = 'http://127.0.0.1:8392/api';
+const WS_URL = 'ws://127.0.0.1:8392/ws';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [settings, setSettings] = useState(null);
+  const [settingsError, setSettingsError] = useState('');
   const [logs, setLogs] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
@@ -25,10 +26,55 @@ export default function App() {
   const wsRef = useRef(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/settings`)
-      .then(r => r.json())
-      .then(data => setSettings(data));
-      
+    const loadSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/settings`);
+        if (!res.ok) {
+          throw new Error('Settings request failed');
+        }
+        const data = await res.json();
+
+        if (data?.activation_code) {
+          const verifyRes = await fetch(`${API_BASE}/verify_activation`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ activation_code: data.activation_code })
+          });
+          const verifyData = await verifyRes.json();
+
+          if (!verifyRes.ok || verifyData?.valid === false) {
+            const cleared = { ...data, activation_code: '' };
+            setSettings(cleared);
+            setSettingsError('Saved activation expired or is invalid. Please activate again.');
+
+            try {
+              await fetch(`${API_BASE}/settings`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(cleared)
+              });
+            } catch (persistError) {
+              console.warn('Failed to clear stale activation code from settings:', persistError);
+            }
+            return;
+          }
+        }
+
+        setSettings(data);
+        setSettingsError('');
+      } catch (error) {
+        setSettings({
+          activation_code: '',
+          app_theme: 'slate',
+          terminal_theme: 'custom',
+          terminal_custom_bg: '#000000',
+          terminal_custom_text: '#ffffff'
+        });
+        setSettingsError('Unable to reach backend yet. Activation is required.');
+      }
+    };
+
+    loadSettings();
     connectWS();
     return () => { if(wsRef.current) wsRef.current.close(); }
   }, []);
@@ -166,40 +212,62 @@ export default function App() {
         }
       }
     } catch(e) {
-      setLogs(l => [...l, `[Error] Failed to connect to server.`]);
+      setLogs(l => [...l, `[Error] Backend is not responding. Close any duplicate Report Tool window and try again.`]);
       setProcessing(false);
     }
   };
 
   const handleActivate = async () => {
+    const normalizedCode = activationInput.trim();
+    if (!normalizedCode) {
+      setActivationError('Please enter your activation code.');
+      return;
+    }
+
     setActivating(true);
     setActivationError('');
     try {
       const res = await fetch(`${API_BASE}/activate`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ activation_code: activationInput })
+        body: JSON.stringify({ activation_code: normalizedCode })
       });
       const data = await res.json();
       if(res.ok) {
-        setSettings({...settings, activation_code: activationInput});
+        setActivationInput(normalizedCode);
+        setSettings({...settings, activation_code: normalizedCode});
+        setSettingsError('');
       } else {
         setActivationError(data.detail || 'Activation failed');
+        setSettingsError(data.detail || 'Activation failed');
       }
     } catch(e) {
-      setActivationError('Server error');
+      setActivationError('Server error: backend is not responding or the activation service is unavailable.');
     }
     setActivating(false);
   };
 
-  if (settings && !settings.activation_code) {
+  const needsActivation = !settings || !settings.activation_code || String(settings.activation_code).trim() === '';
+  const activationStatus = settingsError
+    ? 'Needs activation'
+    : settings?.activation_code
+      ? 'Verified'
+      : 'Fresh install';
+
+  if (needsActivation) {
     return (
       <div className="app-container" style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
         <div className="glass-panel" style={{maxWidth: '400px', width: '100%', textAlign: 'center'}}>
+           <div style={{display: 'flex', justifyContent: 'center', marginBottom: '1rem'}}>
+             <span style={{padding: '0.45rem 0.85rem', borderRadius: '999px', background: settingsError ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)', border: settingsError ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(239, 68, 68, 0.35)', color: settingsError ? '#fbbf24' : '#f87171', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase'}}>
+               Activation status: {activationStatus}
+             </span>
+           </div>
            <h2 style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem'}}>
              <Settings size={24}/> Activation Required
            </h2>
            <p style={{color: 'var(--text-muted)'}}>Please enter your activation code to unlock this software.</p>
+           {settingsError && <p style={{color: '#fbbf24', marginBottom: '1rem'}}>{settingsError}</p>}
            <input type="text" value={activationInput} onChange={e => setActivationInput(e.target.value)} style={{width: '100%', padding: '0.75rem', marginBottom: '1rem', marginTop: '1rem'}} placeholder="Enter code here..."/>
            {activationError && <p style={{color: '#f43f5e', marginBottom: '1rem'}}>{activationError}</p>}
            <button className="btn btn-success" onClick={handleActivate} disabled={activating} style={{width: '100%', padding: '0.75rem'}}>
@@ -235,6 +303,12 @@ export default function App() {
             <Palette size={18}/> Appearance
           </button>
         </nav>
+
+        <div style={{margin: '0 0.75rem 0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(148, 163, 184, 0.2)'}}>
+          <span style={{display: 'inline-flex', width: '100%', justifyContent: 'center', padding: '0.45rem 0.75rem', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)', color: '#4ade80', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase'}}>
+            Activation status: Verified
+          </span>
+        </div>
         
         <div className="sidebar-footer">
           &copy; 2026 Joshua Alforque Ocampo

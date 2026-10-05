@@ -21,6 +21,7 @@ functions/node_modules/
 build/
 dist/
 ReportTool.spec
+version_info.txt
 
 # OS files
 .DS_Store

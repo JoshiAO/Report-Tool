@@ -3,7 +3,11 @@ import os
 from openpyxl import load_workbook
 from datetime import datetime
 import asyncio
-from etl_core import LegacyETL
+
+try:
+    from .etl_core import LegacyETL
+except ImportError:
+    from etl_core import LegacyETL
 
 class ETLJob:
     def __init__(self, report_date: datetime, settings, base_import_dir: str, base_export_dir: str, dummy_code="Y", 

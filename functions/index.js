@@ -8,6 +8,8 @@ admin.initializeApp();
 
 const app = express();
 app.use(cors({ origin: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -39,11 +41,11 @@ app.use('/', async (req, res) => {
         }
 
         const data = doc.data();
-        if (!data.active) {
+        if (data?.active !== true) {
             return res.status(403).json({ error: "Activation code is disabled" });
         }
 
-        if (data.projectname !== "reportTool") {
+        if (String(data?.projectname || '').toLowerCase() !== 'reporttool') {
             return res.status(403).json({ error: "Activation code does not match this software project" });
         }
 
