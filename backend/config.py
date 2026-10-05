@@ -33,15 +33,24 @@ def resolve_log_path() -> str:
     return os.path.join(repo_root, "reporttool.log")
 
 
-APP_DATA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "ReportTool")
-SETTINGS_FILE = resolve_settings_path()
-LOG_FILE = resolve_log_path()
+def get_runtime_storage_paths():
+    if is_frozen_exe():
+        app_data_dir = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "ReportTool")
+        os.makedirs(app_data_dir, exist_ok=True)
+        return app_data_dir, os.path.join(app_data_dir, "settings.json"), os.path.join(app_data_dir, "reporttool.log")
+
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    return repo_root, os.path.join(repo_root, "settings.json"), os.path.join(repo_root, "reporttool.log")
+
+
+APP_DATA_DIR, SETTINGS_FILE, LOG_FILE = get_runtime_storage_paths()
 
 
 def ensure_app_data_dir():
     if is_frozen_exe():
         os.makedirs(APP_DATA_DIR, exist_ok=True)
-    return APP_DATA_DIR
+        return APP_DATA_DIR
+    return os.path.dirname(SETTINGS_FILE)
 
 
 def log_event(message: str):
