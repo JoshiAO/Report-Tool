@@ -20,6 +20,7 @@ backend/venv/
 functions/node_modules/
 build/
 dist/
+Report-Tool/
 ReportTool.spec
 version_info.txt
 
