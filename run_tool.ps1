@@ -41,6 +41,9 @@ Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
 Write-Host "Starting the server at http://localhost:8392" -ForegroundColor Green
 Write-Host "Keep this window open while using the tool." -ForegroundColor Gray
 
+# Local GitHub/script runs must never use EXE activation logic.
+$env:REPORT_TOOL_LOCAL_DEV = "1"
+
 # Run Uvicorn
 & "backend\venv\Scripts\python.exe" backend\main.py
 

@@ -65,9 +65,11 @@ cd ..
 
 Write-Host "`nInstallation Complete! Launching Report Tool..." -ForegroundColor Green
 if (Test-Path ".\run_tool.ps1") {
+    $env:REPORT_TOOL_LOCAL_DEV = "1"
     .\run_tool.ps1
 } elseif (Test-Path "$repoDir\run_tool.ps1") {
     cd $repoDir
+    $env:REPORT_TOOL_LOCAL_DEV = "1"
     .\run_tool.ps1
 } else {
     Write-Host "Could not find run_tool.ps1. Please launch it manually." -ForegroundColor Yellow

@@ -5,6 +5,8 @@ import sys
 import threading
 import time
 import urllib.request
+
+os.environ.setdefault("REPORT_TOOL_LOCAL_DEV", "0")
 from typing import Optional
 
 import pystray

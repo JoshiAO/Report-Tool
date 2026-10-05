@@ -174,7 +174,10 @@ class ETLRequest(BaseModel):
 
 FIREBASE_FUNCTION_URL = "https://getcoremapping-pj6nqcygta-uc.a.run.app"
 
+
 def requires_activation() -> bool:
+    if os.environ.get("REPORT_TOOL_LOCAL_DEV") == "1":
+        return False
     return is_frozen_exe()
 
 @app.get("/api/runtime_mode")
@@ -207,6 +210,14 @@ def verify_activation(activation_code: str):
 
 class ActivateRequest(BaseModel):
     activation_code: str
+    first_name: str = ""
+    last_name: str = ""
+    email: str = ""
+    company: str = ""
+    role: str = "user"
+    projectname: str = "reporttool"
+    machine_hash: str = ""
+    license_type: str = "standard"
 
 @app.post("/api/verify_activation")
 async def verify_saved_activation(req: ActivateRequest):
