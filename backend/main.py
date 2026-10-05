@@ -32,6 +32,10 @@ else:
         sys.path.insert(0, backend_dir)
     from config import log_event
 
+def resolve_server_port() -> int:
+    return 8393 if is_frozen_exe() else 8392
+
+
 app = FastAPI(title="Report Tool Backend")
 log_event("FastAPI backend module imported")
 
@@ -42,6 +46,8 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:8392",
         "http://127.0.0.1:8392",
+        "http://localhost:8393",
+        "http://127.0.0.1:8393",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -327,4 +333,4 @@ def open_browser():
 if __name__ == "__main__":
     threading.Thread(target=open_browser, daemon=True).start()
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8392)
+    uvicorn.run(app, host="127.0.0.1", port=resolve_server_port())

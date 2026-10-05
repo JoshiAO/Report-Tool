@@ -18,7 +18,7 @@ from backend.config import log_event, is_frozen_exe
 from backend.main import app
 
 SERVER_HOST = "127.0.0.1"
-SERVER_PORT = 8392
+SERVER_PORT = 8393 if is_frozen_exe() else 8392
 SERVER_URL = f"http://{SERVER_HOST}:{SERVER_PORT}"
 
 log_event(f"Desktop app started. frozen={is_frozen_exe()} cwd={os.getcwd()}")
