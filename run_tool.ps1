@@ -37,6 +37,18 @@ if (-not (Test-Path "backend\venv")) {
 Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
 & "backend\venv\Scripts\python.exe" -m pip install -r backend\requirements.txt
 
+# 4b. Build frontend if dist is missing and npm is available
+if (-not (Test-Path "frontend\dist\index.html") -and (Get-Command "npm" -ErrorAction SilentlyContinue)) {
+    Write-Host "Building frontend assets..." -ForegroundColor Yellow
+    Push-Location "frontend"
+    try {
+        npm install
+        npm run build
+    } finally {
+        Pop-Location
+    }
+}
+
 # 5. Start the server
 Write-Host "Starting the server at http://localhost:8392" -ForegroundColor Green
 Write-Host "Keep this window open while using the tool." -ForegroundColor Gray

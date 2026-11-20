@@ -1,6 +1,5 @@
 # Node.js
 frontend/node_modules/
-frontend/dist/
 frontend/.npm/
 
 # Python
@@ -19,7 +18,7 @@ backend/venv/
 !firebase.json
 functions/node_modules/
 build/
-dist/
+/dist/
 Report-Tool/
 ReportTool.spec
 version_info.txt

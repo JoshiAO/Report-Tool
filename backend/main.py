@@ -164,13 +164,20 @@ async def resolve_file(resolution: FileResolution):
 async def get_settings():
     log_event("GET /api/settings requested")
     settings = load_settings()
+    if not requires_activation() and not settings.activation_code:
+        settings.activation_code = "LOCAL_DEV"
     log_event(f"GET /api/settings -> activation_code_present={bool(settings.activation_code)}")
     return settings
 
 @app.post("/api/settings")
 async def set_settings(settings: dict):
     log_event(f"POST /api/settings payload keys={list(settings.keys())}")
-    return update_settings(settings)
+    if settings.get("activation_code") == "LOCAL_DEV":
+        settings = {**settings, "activation_code": ""}
+    updated = update_settings(settings)
+    if not requires_activation() and not updated.activation_code:
+        updated.activation_code = "LOCAL_DEV"
+    return updated
 
 class ProceduresConfig(BaseModel):
     net_invoiced: bool = True
