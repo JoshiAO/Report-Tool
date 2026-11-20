@@ -38,7 +38,19 @@ if (-not (Test-Path "frontend\dist\index.html") -and (Get-Command "npm" -ErrorAc
     }
 }
 
-# 5. Start the server
+# 5. Free port 8392 if an older Report Tool server is still running in the background
+$existingConn = Get-NetTCPConnection -LocalPort 8392 -State Listen -ErrorAction SilentlyContinue
+if ($existingConn) {
+    Write-Host "Stopping previous server instance on port 8392..." -ForegroundColor Yellow
+    foreach ($procId in ($existingConn.OwningProcess | Select-Object -Unique)) {
+        if ($procId -gt 0) {
+            Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Start-Sleep -Milliseconds 500
+}
+
+# 6. Start the server
 Write-Host "Starting the server at http://localhost:8392" -ForegroundColor Green
 Write-Host "Keep this window open while using the tool." -ForegroundColor Gray
 
