@@ -154,9 +154,26 @@ class LegacyETL:
         
         await self.send_progress("Pivoting Customer Returns by Facility Name (BO/FG)...")
         dfc2 = df2[['Customer Return Date', 'Sold To Customer Number', 'Product Code',
-                    'Product Description', 'Facility Name', 'Estimated Product Return Amount','Customer Return Number', 'UOM', 'Return/ QC Quantity']].copy()
-        dfc2['Estimated Product Return Amount'] = dfc2['Estimated Product Return Amount'].fillna(0)
-        ret_init = dfc2
+                    'Product Description', 'Facility Name', 'Estimated Product Return Amount','Customer Return Number', 'UOM', 'Return/ QC Quantity','Status']].copy()
+        ret_qc_checked = dfc2[dfc2['Status'] != 'Open']
+        ret_get_qc_open = dfc2[dfc2['Status'] == 'Open']
+        ret_qc_open = ret_get_qc_open[['Customer Return Date', 'Customer Return Number', 'Sold To Customer Number']]
+
+        # Get unique open returns
+        unique_open_returns = ret_qc_open.drop_duplicates(subset=['Customer Return Number'])
+
+        if unique_open_returns.empty:
+            await self.send_progress("No open customer returns found.")
+        else:
+            for _, row in unique_open_returns.iterrows():
+                await self.send_progress(
+                    f"Open Return Found - Date: {row['Customer Return Date']}, "
+                    f"Return Number: {row['Customer Return Number']}, "
+                    f"Sold To: {row['Sold To Customer Number']}"
+                )
+
+        ret_qc_checked['Estimated Product Return Amount'] = ret_qc_checked['Estimated Product Return Amount'].fillna(0)
+        ret_init = ret_qc_checked
         
         if not ci_checker_ret.empty:
             ci_ret = ret_init.copy()
@@ -283,15 +300,15 @@ class LegacyETL:
         
         #Sales Force Reading
         await self.send_progress(f"Extracting Route Data from {full_im_path_route}...")
-        
+
+        #Load Route file
         dms_route_df = pd.read_excel(full_im_path_route)
+        dms_route_df = dms_route_df.copy()[[
+                    'customer_no',
+                    'route_code'
+                ]]
         await self.send_progress(f"Route Data loaded successfully ({len(dms_route_df)} routes). Mapping coverage to CML...")
         
-        await self.send_progress("Merging Route Data with CML...")
-        dms_route = dms_route_df.copy()[[
-            'customer_no',
-            'route_code'
-        ]]
         
         # Clean up CDAM DF
         # Set proper column names from row 1 and skip the first 2 rows
@@ -351,6 +368,7 @@ class LegacyETL:
         dms_route_merge = dms_route_df[['customer_no', 'COVERAGE_DAY', 'WKLY_COVERAGE', 'FREQ']].copy()
         dms_route_merge = dms_route_merge.rename(columns={'customer_no': 'NEXT_UP_NUMBER'})
         
+        await self.send_progress("Merging Route Data with CML...")
         # Merge dms_route_df with cml_df on NEXT_UP_NUMBER
         cml_df = cml_df.merge(dms_route_merge, on='NEXT_UP_NUMBER', how='left')
         
