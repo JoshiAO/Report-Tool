@@ -83,8 +83,8 @@ class AppSettings(BaseModel):
     app_theme: str = "slate"
     terminal_theme: str = "matrix"
     terminal_custom_bg: str = "#000000"
-    terminal_custom_bg: str = "#000000"
     terminal_custom_text: str = "#ffffff"
+    special_sellout_condition: str = ""
     activation_code: str = ""
 
 def get_machine_id():
@@ -156,7 +156,6 @@ def update_settings(new_settings: dict) -> AppSettings:
     for k, v in new_settings.items():
         if hasattr(settings, k):
             setattr(settings, k, v)
-    with open(SETTINGS_FILE, "w") as f:
-        f.write(settings.model_dump_json())
+    save_settings(settings)
     log_event(f"Updated settings payload: {list(new_settings.keys())}")
     return settings

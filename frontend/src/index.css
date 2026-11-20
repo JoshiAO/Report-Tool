@@ -436,3 +436,156 @@ select {
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 6px;
 }
+
+/* Modular Procedures Checklist */
+.procedures-container {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--glass-border);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.procedures-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.procedures-header h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+
+.btn-toggle-all {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle-all:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.procedures-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.proc-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+  padding: 0.25rem 0.35rem;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.proc-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.proc-item input[type="checkbox"],
+.proc-subitem input[type="checkbox"],
+.proc-subitem input[type="radio"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.proc-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.proc-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-left: 1.65rem;
+  margin-top: 0.1rem;
+  transition: opacity 0.2s ease;
+}
+
+.proc-sublist.disabled {
+  opacity: 0.45;
+}
+
+.proc-subitem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  padding: 0.15rem 0.25rem;
+  border-radius: 4px;
+}
+
+.proc-subitem:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.special-cond-box {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+  padding-left: 0.25rem;
+}
+
+.special-cond-box input[type="text"] {
+  flex: 1;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+}
+
+.btn-save-cond {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-save-cond:hover {
+  background: var(--accent-hover);
+}

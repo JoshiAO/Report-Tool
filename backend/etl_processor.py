@@ -10,8 +10,8 @@ except ImportError:
     from etl_core import LegacyETL
 
 class ETLJob:
-    def __init__(self, report_date: datetime, settings, base_import_dir: str, base_export_dir: str, dummy_code="Y", 
-                 send_progress=None, request_categories=None, request_missing_file=None, net_inv_mapping=None):
+    def __init__(self, report_date: datetime, settings, base_import_dir: str, base_export_dir: str, dummy_code="N", 
+                 send_progress=None, request_categories=None, request_missing_file=None, net_inv_mapping=None, procedures=None):
         self.report_date = report_date
         self.settings = settings
         self.base_import_dir = base_import_dir
@@ -22,6 +22,17 @@ class ETLJob:
         self.request_categories = request_categories
         self.request_missing_file = request_missing_file
         self.net_inv_mapping = net_inv_mapping
+        self.procedures = procedures or {
+            "net_invoiced": True,
+            "sales_orders": True,
+            "served_invoice": True,
+            "special_sellout": True,
+            "special_sellout_mode": "general",
+            "special_sellout_condition": getattr(settings, "special_sellout_condition", ""),
+            "pricelist_m0": True,
+            "pricelist_m3": True,
+            "cml": True,
+        }
 
     async def run(self):
         try:
@@ -68,16 +79,47 @@ class ETLJob:
                     raise FileNotFoundError(f"{desc} file not found: {path}")
                 return path
 
-            await self.send_progress("Validating reference paths...")
-            self.settings.reference_path_category = await check_file(self.settings.reference_path_category, "CATEGORY")
-            self.settings.reference_path_fs = await check_file(self.settings.reference_path_fs, "Field Supervisors")
-            self.settings.reference_path_week = await check_file(self.settings.reference_path_week, "WEEK")
-            self.settings.reference_path_cdam = await check_file(self.settings.reference_path_cdam, "CDAM")
-            self.settings.reference_path_gt_channel = await check_file(self.settings.reference_path_gt_channel, "GT Channel")
-            self.settings.reference_path_new_customer = await check_file(self.settings.reference_path_new_customer, "New Customer")
-            
+            procs = self.procedures
+            run_net_inv = bool(procs.get("net_invoiced", True))
+            run_so = bool(procs.get("sales_orders", True))
+            run_ser_inv = bool(procs.get("served_invoice", True))
+            run_sellout = bool(procs.get("special_sellout", True))
+            run_pl_m0 = bool(procs.get("pricelist_m0", True))
+            run_pl_m3 = bool(procs.get("pricelist_m3", True))
+            run_cml = bool(procs.get("cml", True))
+
+            if not any([run_net_inv, run_so, run_ser_inv, run_sellout, run_pl_m0, run_pl_m3, run_cml]):
+                await self.send_progress("Error: No procedures selected. Please check at least one procedure.")
+                return {"status": "error", "message": "No procedures selected."}
+
+            await self.send_progress("Validating reference paths for selected procedures...")
+            if run_net_inv or run_so or run_ser_inv:
+                self.settings.reference_path_category = await check_file(self.settings.reference_path_category, "CATEGORY")
+            if run_net_inv or run_so or run_ser_inv or run_cml:
+                self.settings.reference_path_fs = await check_file(self.settings.reference_path_fs, "Field Supervisors")
+            if run_net_inv or run_so or run_ser_inv:
+                self.settings.reference_path_week = await check_file(self.settings.reference_path_week, "WEEK")
+            if run_cml:
+                self.settings.reference_path_cdam = await check_file(self.settings.reference_path_cdam, "CDAM")
+            if run_net_inv:
+                self.settings.reference_path_gt_channel = await check_file(self.settings.reference_path_gt_channel, "GT Channel")
+            if run_cml:
+                self.settings.reference_path_new_customer = await check_file(self.settings.reference_path_new_customer, "New Customer")
+            if run_net_inv or run_so or run_ser_inv:
+                self.settings.reference_path_wrong_ci = await check_file(self.settings.reference_path_wrong_ci, "Wrong C.I.")
+
+            required_imports = {
+                'invoice': run_net_inv or run_so or run_ser_inv or run_sellout,
+                'returns': run_net_inv or run_sellout,
+                'customer': run_net_inv or run_so or run_ser_inv or run_cml,
+                'route': run_cml,
+                'price': run_pl_m0 or run_pl_m3 or run_net_inv or run_so or run_ser_inv,
+                'sales_order': run_so,
+            }
+
             for k, f in self.import_files.items():
-                self.import_files[k] = await check_file(f, f"Import {k}")
+                if required_imports.get(k, False):
+                    self.import_files[k] = await check_file(f, f"Import {k}")
 
             async def handle_missing_categories_wrapper(category_df, all_products, category_ref_path):
                 # Similar to original edit_missing_categories but uses WebSockets to ask UI
@@ -132,7 +174,8 @@ class ETLJob:
                 ci_path=self.ci_path,
                 send_progress=self.send_progress,
                 handle_missing_categories=handle_missing_categories_wrapper,
-                net_inv_mapping=self.net_inv_mapping
+                net_inv_mapping=self.net_inv_mapping,
+                procedures=self.procedures
             )
             
             # The generated etl_core might have some missing imports since it runs globally

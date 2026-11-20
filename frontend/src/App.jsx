@@ -13,6 +13,18 @@ export default function App() {
   const [logs, setLogs] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [procedures, setProcedures] = useState({
+    net_invoiced: true,
+    sales_orders: true,
+    served_invoice: true,
+    special_sellout: true,
+    special_sellout_mode: 'general',
+    pricelist_m0: true,
+    pricelist_m3: true,
+    cml: true,
+  });
+  const [specialCondition, setSpecialCondition] = useState('');
+  const [conditionSaved, setConditionSaved] = useState(false);
   
   // Activation State
   const [activationInput, setActivationInput] = useState('');
@@ -69,6 +81,7 @@ export default function App() {
         }
 
         setSettings(data);
+        setSpecialCondition(data?.special_sellout_condition || '');
         setSettingsError('');
       } catch (error) {
         setSettings({
@@ -182,23 +195,81 @@ export default function App() {
     setBrowseModal({ title, fieldName, data });
   };
 
+  const allProceduresChecked =
+    procedures.net_invoiced &&
+    procedures.sales_orders &&
+    procedures.served_invoice &&
+    procedures.special_sellout &&
+    procedures.pricelist_m0 &&
+    procedures.pricelist_m3 &&
+    procedures.cml;
+
+  const anyProcedureChecked =
+    procedures.net_invoiced ||
+    procedures.sales_orders ||
+    procedures.served_invoice ||
+    procedures.special_sellout ||
+    procedures.pricelist_m0 ||
+    procedures.pricelist_m3 ||
+    procedures.cml;
+
+  const toggleAllProcedures = () => {
+    const nextVal = !allProceduresChecked;
+    setProcedures(prev => ({
+      ...prev,
+      net_invoiced: nextVal,
+      sales_orders: nextVal,
+      served_invoice: nextVal,
+      special_sellout: nextVal,
+      pricelist_m0: nextVal,
+      pricelist_m3: nextVal,
+      cml: nextVal,
+    }));
+  };
+
+  const saveSpecialConditionToSettings = async () => {
+    const updated = { ...(settings || {}), special_sellout_condition: specialCondition };
+    setSettings(updated);
+    try {
+      await fetch(`${API_BASE}/settings`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(updated)
+      });
+      setConditionSaved(true);
+      setTimeout(() => setConditionSaved(false), 2000);
+    } catch (e) {
+      console.error('Failed to save special condition:', e);
+    }
+  };
+
   const saveSettings = async () => {
+    const payload = { ...settings, special_sellout_condition: specialCondition };
+    setSettings(payload);
     await fetch(`${API_BASE}/settings`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(settings)
+      body: JSON.stringify(payload)
     });
     alert('Settings saved!');
   };
 
   const startETL = async () => {
+    if (!anyProcedureChecked) {
+      setLogs([`[${new Date().toLocaleTimeString()}] Please select at least one procedure before launching.`]);
+      return;
+    }
     setLogs([]);
     setProcessing(true);
     const req = {
       report_date: reportDate,
-      dummy_code: "Y",
+      dummy_code: procedures.special_sellout_mode === 'specials' ? "Y" : "N",
       base_import_dir: settings?.default_import_folder || "",
-      base_export_dir: settings?.default_export_folder || ""
+      base_export_dir: settings?.default_export_folder || "",
+      procedures: {
+        ...procedures,
+        special_sellout_condition: specialCondition
+      }
     };
     
     try {
@@ -328,24 +399,169 @@ export default function App() {
       <main className="main-content">
       {activeTab === 'dashboard' && (
         <div className="dashboard-grid">
-          <div className="glass-panel" style={{height:'100%', display: 'flex', flexDirection: 'column'}}>
-            <h2 className="panel-title"><Database size={24}/> ETL Pipeline Engine</h2>
-            <p style={{color:'var(--text-muted)', marginBottom:'2rem', fontSize:'0.9rem', lineHeight: 1.5}}>
+          <div className="glass-panel" style={{height:'100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', marginBottom: 0}}>
+            <h2 className="panel-title" style={{marginBottom: '0.5rem'}}><Database size={24}/> ETL Pipeline Engine</h2>
+            <p style={{color:'var(--text-muted)', marginBottom:'1rem', fontSize:'0.85rem', lineHeight: 1.4}}>
               Initialize the ETL sequence. Ensure references are configured before running.
             </p>
             
-            <div style={{background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', border: '1px solid var(--glass-border)'}}>
-              <h4 style={{marginBottom:'1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--accent)'}}>
+            <div style={{background: 'rgba(0,0,0,0.2)', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1rem', border: '1px solid var(--glass-border)'}}>
+              <h4 style={{marginBottom:'0.65rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--accent)'}}>
                 Target Date
               </h4>
               <div className="form-group" style={{marginBottom: 0}}>
-                <label>Report Execution Date</label>
-                <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} style={{width: '100%', padding: '0.5rem', fontSize: '1rem'}} />
+                <label style={{fontSize: '0.82rem'}}>Report Execution Date</label>
+                <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} style={{width: '100%', padding: '0.45rem 0.75rem', fontSize: '0.95rem'}} />
+              </div>
+            </div>
+
+            <div className="procedures-container">
+              <div className="procedures-header">
+                <h4>Procedures</h4>
+                <button
+                  type="button"
+                  className="btn-toggle-all"
+                  onClick={toggleAllProcedures}
+                >
+                  {allProceduresChecked ? 'Uncheck All' : 'Check All'}
+                </button>
+              </div>
+
+              <div className="procedures-list">
+                {/* 1. Net Invoiced */}
+                <label className="proc-item">
+                  <input
+                    type="checkbox"
+                    checked={procedures.net_invoiced}
+                    onChange={e => setProcedures(p => ({ ...p, net_invoiced: e.target.checked }))}
+                  />
+                  <span>1. Net Invoiced</span>
+                </label>
+
+                {/* 2. Sales Orders */}
+                <label className="proc-item">
+                  <input
+                    type="checkbox"
+                    checked={procedures.sales_orders}
+                    onChange={e => setProcedures(p => ({ ...p, sales_orders: e.target.checked }))}
+                  />
+                  <span>2. Sales Orders</span>
+                </label>
+
+                {/* 3. Served Invoice */}
+                <label className="proc-item">
+                  <input
+                    type="checkbox"
+                    checked={procedures.served_invoice}
+                    onChange={e => setProcedures(p => ({ ...p, served_invoice: e.target.checked }))}
+                  />
+                  <span>3. Served Invoice</span>
+                </label>
+
+                {/* 4. Special Sellout (NET DMS Sellout) */}
+                <div className="proc-group">
+                  <label className="proc-item">
+                    <input
+                      type="checkbox"
+                      checked={procedures.special_sellout}
+                      onChange={e => setProcedures(p => ({ ...p, special_sellout: e.target.checked }))}
+                    />
+                    <span>4. Special Sellout (NET DMS Sellout)</span>
+                  </label>
+                  <div className={`proc-sublist ${!procedures.special_sellout ? 'disabled' : ''}`}>
+                    <label className="proc-subitem">
+                      <input
+                        type="radio"
+                        name="special_sellout_mode"
+                        checked={procedures.special_sellout_mode === 'general'}
+                        onChange={() => setProcedures(p => ({ ...p, special_sellout: true, special_sellout_mode: 'general' }))}
+                      />
+                      <span>a. General (Default)</span>
+                    </label>
+                    <label className="proc-subitem">
+                      <input
+                        type="radio"
+                        name="special_sellout_mode"
+                        checked={procedures.special_sellout_mode === 'specials'}
+                        onChange={() => setProcedures(p => ({ ...p, special_sellout: true, special_sellout_mode: 'specials' }))}
+                      />
+                      <span>b. Specials</span>
+                    </label>
+                    {procedures.special_sellout && procedures.special_sellout_mode === 'specials' && (
+                      <div className="special-cond-box">
+                        <input
+                          type="text"
+                          placeholder="Condition (e.g. KNE)"
+                          value={specialCondition}
+                          onChange={e => setSpecialCondition(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="btn-save-cond"
+                          onClick={saveSpecialConditionToSettings}
+                          title="Save special condition to settings"
+                        >
+                          {conditionSaved ? 'Saved!' : 'Save'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 5. Pricelist */}
+                <div className="proc-group">
+                  <label className="proc-item">
+                    <input
+                      type="checkbox"
+                      checked={procedures.pricelist_m0 && procedures.pricelist_m3}
+                      ref={el => {
+                        if (el) {
+                          el.indeterminate =
+                            (procedures.pricelist_m0 || procedures.pricelist_m3) &&
+                            !(procedures.pricelist_m0 && procedures.pricelist_m3);
+                        }
+                      }}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setProcedures(p => ({ ...p, pricelist_m0: checked, pricelist_m3: checked }));
+                      }}
+                    />
+                    <span>5. Pricelist</span>
+                  </label>
+                  <div className="proc-sublist">
+                    <label className="proc-subitem">
+                      <input
+                        type="checkbox"
+                        checked={procedures.pricelist_m0}
+                        onChange={e => setProcedures(p => ({ ...p, pricelist_m0: e.target.checked }))}
+                      />
+                      <span>a. M0</span>
+                    </label>
+                    <label className="proc-subitem">
+                      <input
+                        type="checkbox"
+                        checked={procedures.pricelist_m3}
+                        onChange={e => setProcedures(p => ({ ...p, pricelist_m3: e.target.checked }))}
+                      />
+                      <span>b. M3</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 6. Customer Master List (CML) */}
+                <label className="proc-item">
+                  <input
+                    type="checkbox"
+                    checked={procedures.cml}
+                    onChange={e => setProcedures(p => ({ ...p, cml: e.target.checked }))}
+                  />
+                  <span>6. Customer Master List (CML)</span>
+                </label>
               </div>
             </div>
             
-            <div style={{marginTop: 'auto'}}>
-              <button className="btn btn-success" onClick={startETL} disabled={processing} style={{width:'100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 600, display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center'}}>
+            <div style={{marginTop: 'auto', paddingTop: '0.5rem'}}>
+              <button className="btn btn-success" onClick={startETL} disabled={processing || !anyProcedureChecked} style={{width:'100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 600, display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center'}}>
                 {processing ? (
                   <><span className="pulse"></span> Executing Pipeline...</>
                 ) : (

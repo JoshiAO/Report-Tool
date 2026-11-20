@@ -8,7 +8,7 @@ import sys
 import asyncio
 import urllib.request
 import urllib.error
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 if __package__:
     from .config import load_settings, save_settings, AppSettings, update_settings, is_frozen_exe
@@ -172,13 +172,51 @@ async def set_settings(settings: dict):
     log_event(f"POST /api/settings payload keys={list(settings.keys())}")
     return update_settings(settings)
 
+class ProceduresConfig(BaseModel):
+    net_invoiced: bool = True
+    sales_orders: bool = True
+    served_invoice: bool = True
+    special_sellout: bool = True
+    special_sellout_mode: str = "general"
+    special_sellout_condition: str = ""
+    pricelist_m0: bool = True
+    pricelist_m3: bool = True
+    cml: bool = True
+
 class ETLRequest(BaseModel):
     report_date: str
     base_import_dir: str = ""
     base_export_dir: str = ""
-    dummy_code: str = "Y"
+    dummy_code: str = "N"
+    procedures: Optional[ProceduresConfig] = None
 
 FIREBASE_FUNCTION_URL = "https://getcoremapping-pj6nqcygta-uc.a.run.app"
+
+DEFAULT_NET_INV_MAPPING = {
+    'RD NAME': 'RD Name',
+    'DATE': 'Date',
+    'WEEK': 'Week',
+    'BRANCH_NAME': 'Branch Name',
+    'SALES_REP_ID': 'Employee Code',
+    'SALES_REP_NAME': 'Employee Name',
+    'KEY_ACCOUNT': 'Channel',
+    'ACCOUNT CODE': 'Sold To Customer number',
+    'CUSTOMER_NAME': 'Sold To Customer Name',
+    'CATEGORY': 'Category',
+    'SKU CODE': 'Product Code',
+    'SKU NAME': 'Product Description',
+    'VOLUME': 'Volume',
+    'VALUE': 'Net Value',
+    'GOOD RETURNS': 'Good Stock Returns',
+    'BAD RETURNS': 'Bad Stock Returns',
+    'PARTY_CLASSIFICATION_DESCRIPTION': 'Channel_Classification',
+    'GEO_LOCATION_HIERARCHYDESCRIPTION': 'Brgy',
+    'CITY': 'Town',
+    'STATE_PROVINCE': 'Province',
+    'FS': 'FS',
+    'CHANNEL': 'RTM Model',
+    'GT_Channel': 'GT Channel',
+}
 
 
 def requires_activation() -> bool:
@@ -263,12 +301,15 @@ async def run_etl(request: ETLRequest):
         raise HTTPException(status_code=400, detail="Invalid date format, use YYYY-MM-DD")
         
     # Verify activation only for packaged client EXEs; local/dev runs skip this requirement.
-    net_inv_mapping = None
     if requires_activation():
         try:
             net_inv_mapping = verify_activation(settings.activation_code)
         except HTTPException as e:
             return {"status": "error", "message": f"Activation Error: {e.detail}"}
+    else:
+        net_inv_mapping = DEFAULT_NET_INV_MAPPING.copy()
+
+    procedures_dict = request.procedures.model_dump() if request.procedures else None
 
     job = ETLJob(
         report_date=dt,
@@ -279,7 +320,8 @@ async def run_etl(request: ETLRequest):
         send_progress=broadcast_progress,
         request_categories=request_categories_from_ui,
         request_missing_file=request_missing_file_from_ui,
-        net_inv_mapping=net_inv_mapping
+        net_inv_mapping=net_inv_mapping,
+        procedures=procedures_dict
     )
     
     # Run in background to avoid blocking the request thread

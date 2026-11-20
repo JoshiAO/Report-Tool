@@ -27,3 +27,7 @@ version_info.txt
 # OS files
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
